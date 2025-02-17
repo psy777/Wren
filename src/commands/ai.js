@@ -8,8 +8,8 @@ const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, '../../');
 
 // Paths relative to project root
-const katagoPath = resolve(projectRoot, '../katago-opencl/katago.exe');
-const configPath = resolve(projectRoot, '../katago-opencl/analysis_example.cfg');
+const katagoPath = process.env.KATAGO_PATH || resolve(projectRoot, '../katago-opencl/katago.exe');
+const configPath = process.env.KATAGO_CONFIG_PATH || resolve(projectRoot, '../katago-opencl/analysis_example.cfg');
 
 console.log('KataGo paths:');
 console.log('Engine path:', katagoPath);
