@@ -15,12 +15,8 @@ A Discord bot for playing Go/Baduk with team support and KataGo AI integration. 
 npm install
 ```
 
-2. Set up environment variables in a `.env` file:
-```env
-DISCORD_TOKEN=your_discord_bot_token
-CLIENT_ID=your_discord_application_client_id
-KATAGO_ANALYSIS_ENDPOINT=your_katago_analysis_endpoint
-```
+2. Set up environment variables in a `.env` file. 
+  - Check .env.example
 
 3. Deploy slash commands:
 ```bash
@@ -30,6 +26,18 @@ node src/deploy-commands.js
 4. Start the bot:
 ```bash
 npm start
+```
+
+## Docker
+
+1. Build the Docker image:
+```bash
+docker build -t Wren .
+```
+
+2. Run the Docker container:
+```bash
+docker run -d --name wren-discord-bot --env-file .env Wren
 ```
 
 ## Commands
@@ -64,10 +72,7 @@ npm start
 
 ## KataGo Integration
 
-The bot uses KataGo's analysis engine for AI features. You'll need to:
-1. Set up a KataGo analysis engine server
-2. Set the `KATAGO_ANALYSIS_ENDPOINT` environment variable to point to your KataGo server
-3. Ensure the server is accessible from where the bot is running
+The bot uses KataGo's analysis engine to provide AI move suggestions, play against AI opponents, and estimate the score of the game. The AI can be set to different strength levels (beginner, intermediate, advanced).
 
 ## Team Play
 
