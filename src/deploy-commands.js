@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const { readdir } = require('fs/promises');
 const path = require('path');

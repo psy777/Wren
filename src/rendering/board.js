@@ -14,7 +14,7 @@ class BoardRenderer {
   constructor(size = 19) {
     this.size = size;
     this.cellSize = 40;
-    this.margin = 30;
+    this.margin = 50;
     this.stoneRadius = this.cellSize * 0.45;
 
     // Calculate canvas dimensions
@@ -65,6 +65,9 @@ class BoardRenderer {
     // Fill background
     this.ctx.fillStyle = BOARD_COLOR;
     this.ctx.fillRect(0, 0, this.width, this.height);
+
+    // Draw coordinates
+    this.drawCoordinates();
 
     // Draw grid lines
     this.ctx.strokeStyle = LINE_COLOR;
@@ -170,6 +173,56 @@ class BoardRenderer {
     }
 
     return this.canvas.toBuffer('image/png');
+  }
+
+  // Convert numeric coordinates to board notation (e.g., 0,0 -> 'a1')
+  coordsToNotation(x, y) {
+    const letter = String.fromCharCode('a'.charCodeAt(0) + x);
+      const number = this.size - y;
+    return `${letter}${number}`;
+  }
+
+  // Draw coordinate labels
+  drawCoordinates() {
+    this.ctx.fillStyle = LINE_COLOR;
+    this.ctx.font = '16px Arial';
+    this.ctx.textAlign = 'center';
+    
+    // Draw column letters (a-t)
+    for (let x = 0; x < this.size; x++) {
+      const [px, py] = this.boardToPixel(x, 0);
+      // Bottom letters
+      this.ctx.fillText(
+        String.fromCharCode('a'.charCodeAt(0) + x),
+        px,
+        this.height - 10
+      );
+      // Top letters
+      this.ctx.fillText(
+        String.fromCharCode('a'.charCodeAt(0) + x),
+        px,
+        20
+      );
+    }
+
+    // Draw row numbers (1-19)
+    this.ctx.textAlign = 'right';
+    for (let y = 0; y < this.size; y++) {
+      const [px, py] = this.boardToPixel(0, y);
+      const number = this.size - y;
+      // Left numbers
+      this.ctx.fillText(
+        number.toString(),
+        this.margin - 10,
+        py + 6
+      );
+      // Right numbers
+      this.ctx.fillText(
+        number.toString(),
+        this.width - 10,
+        py + 6
+      );
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Client, GatewayIntentBits, Events, Collection } = require('discord.js');
 const { readdir } = require('fs/promises');
 const path = require('path');
