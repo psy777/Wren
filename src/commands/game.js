@@ -1,6 +1,6 @@
-const { SlashCommandBuilder } = require('discord.js');
-const { Board } = require('../game/board.js');
-const { BoardRenderer } = require('../rendering/board.js');
+import { SlashCommandBuilder } from 'discord.js';
+import { Board } from '../game/board.js';
+import { BoardRenderer } from '../rendering/board.js';
 
 const BOARD_SIZES = {
   '19x19': 19,
@@ -75,7 +75,7 @@ async function execute(interaction) {
   });
 }
 
-module.exports = {
+export {
   data,
   execute
 };

@@ -115,7 +115,7 @@ const RULESETS = {
   aga: new AGARuleset()
 };
 
-module.exports = {
+export {
   RULESETS,
   BaseRuleset,
   ChineseRuleset,

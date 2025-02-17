@@ -1,7 +1,11 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, Events, Collection } = require('discord.js');
-const { readdir } = require('fs/promises');
-const path = require('path');
+import 'dotenv/config';
+import { Client, GatewayIntentBits, Events, Collection } from 'discord.js';
+import { readdir } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Create a new client instance
 const client = new Client({
@@ -20,12 +24,14 @@ client.commands = new Collection();
 
 // Load commands
 async function loadCommands() {
-  const commandsPath = path.join(__dirname, 'commands');
+  const commands = [];
+  const commandsPath = join(__dirname, 'commands');
   const commandFiles = (await readdir(commandsPath)).filter(file => file.endsWith('.js'));
 
   for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
+    const filePath = join(commandsPath, file);
+    const fileUrl = `file://${resolve(filePath)}`;
+    const command = await import(fileUrl);
     if ('data' in command && 'execute' in command) {
       client.commands.set(command.data.name, command);
     }
@@ -47,11 +53,26 @@ client.on(Events.InteractionCreate, async interaction => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    await interaction.reply({
-      content: 'There was an error executing this command!',
-      ephemeral: true
-    });
+    try {
+      const errorMessage = {
+        content: 'There was an error executing this command!',
+        ephemeral: true
+      };
+
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(errorMessage);
+      } else {
+        await interaction.reply(errorMessage);
+      }
+    } catch (followUpError) {
+      console.error('Error sending error message:', followUpError);
+    }
   }
+});
+
+// Handle process errors
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
 });
 
 // Initialize bot

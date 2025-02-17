@@ -2,10 +2,11 @@
   "name": "discord-go-bot",
   "version": "1.0.0",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
-    "start": "node -r dotenv/config src/index.js",
-    "dev": "node -r dotenv/config --watch src/index.js",
-    "deploy": "node -r dotenv/config src/deploy-commands.js"
+    "start": "node --experimental-json-modules src/index.js",
+    "dev": "node --experimental-json-modules --watch src/index.js",
+    "deploy": "node --experimental-json-modules src/deploy-commands.js"
   },
   "keywords": ["discord", "bot", "go", "baduk", "weiqi"],
   "author": "",
