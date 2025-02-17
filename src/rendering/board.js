@@ -1,5 +1,5 @@
-const { createCanvas } = require('@napi-rs/canvas');
-const { COLORS } = require('../game/board.js');
+import { createCanvas } from '@napi-rs/canvas';
+import { COLORS } from '../game/board.js';
 
 const STONE_COLORS = {
   [COLORS.BLACK]: '#000000',
@@ -226,6 +226,6 @@ class BoardRenderer {
   }
 }
 
-module.exports = {
+export {
   BoardRenderer
 };

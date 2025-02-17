@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+import { SlashCommandBuilder } from 'discord.js';
 
 const data = new SlashCommandBuilder()
   .setName('play')
@@ -80,7 +80,7 @@ async function execute(interaction) {
   });
 }
 
-module.exports = {
+export {
   data,
   execute
 };

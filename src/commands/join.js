@@ -1,5 +1,5 @@
-const { SlashCommandBuilder } = require('discord.js');
-const { COLORS } = require('../game/board.js');
+import { SlashCommandBuilder } from 'discord.js';
+import { COLORS } from '../game/board.js';
 
 const data = new SlashCommandBuilder()
   .setName('join')
@@ -50,7 +50,7 @@ async function execute(interaction) {
   });
 }
 
-module.exports = {
+export {
   data,
   execute
 };

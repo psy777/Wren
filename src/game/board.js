@@ -1,4 +1,4 @@
-const { RULESETS } = require('./rules.js');
+import { RULESETS } from './rules.js';
 
 const COLORS = {
   BLACK: 'black',
@@ -196,7 +196,7 @@ class Board {
   }
 }
 
-module.exports = {
+export {
   Board,
   COLORS
 };
