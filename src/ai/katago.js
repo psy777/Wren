@@ -21,21 +21,41 @@ class KataGo {
     this.responseBuffer = '';
     this.currentRequest = null;
     this.startupError = null;
+    // Use service mode if KATAGO_MODE environment variable is set to "service"
+    this.useService = process.env.KATAGO_MODE === 'service';
+    if (this.useService) {
+      this.serviceUrl = process.env.KATAGO_URL || 'http://katago:3000';
+      console.log('KataGo running in service mode. Service URL:', this.serviceUrl);
+    }
   }
 
-  // Start the KataGo process
+  // Start the KataGo process (or do nothing if using service mode)
   start() {
+    if (this.useService) {
+      console.log('KataGo is running in service mode, skipping local process spawn.');
+      return Promise.resolve();
+    }
     if (this.process) return;
 
     console.log('Starting KataGo with:');
     console.log('Engine path:', this.enginePath);
     console.log('Config path:', this.configPath);
 
-    this.process = spawn(this.enginePath, [
-      'analysis',
-      '-config', this.configPath,
-      '-model', join(dirname(this.enginePath), 'kata1-b28c512nbt-s8209287936-d4596492266.bin.gz')
-    ]);
+    const katagoDir = dirname(this.enginePath);
+    const modelPath = join(katagoDir, 'kata1-b28c512nbt-s8209287936-d4596492266.bin.gz');
+    console.log('Model path:', modelPath);
+    console.log('Working directory:', katagoDir);
+    try {
+      this.process = spawn(this.enginePath, [
+        'analysis',
+        '-config', this.configPath,
+        '-model', modelPath
+      ], { cwd: katagoDir, shell: false });
+    } catch (error) {
+      console.error('Error spawning KataGo process:', error);
+      this.startupError = error.message;
+      throw error;
+    }
 
     // Handle process output
     this.process.stdout.on('data', (data) => {
@@ -78,16 +98,15 @@ class KataGo {
     });
   }
 
-  // Process responses from KataGo
+  // Process responses from KataGo (only used in local mode)
   processResponses() {
     const lines = this.responseBuffer.split('\n');
-    
     // Keep the last line in the buffer if it's incomplete
     this.responseBuffer = lines.pop();
 
     for (const line of lines) {
       if (!line.trim()) continue;
-      
+
       try {
         const response = JSON.parse(line);
         if (this.currentRequest && response.id === this.currentRequest.id) {
@@ -130,66 +149,87 @@ class KataGo {
 
   // Get move suggestion using KataGo Analysis Engine
   async getMove(board, settings = { maxVisits: 1000, playoutDoublingAdvantage: 0.0 }) {
-    try {
+    // Build query object
+    const rulesetName = board.ruleset.constructor.name.toLowerCase().replace('ruleset', '');
+    const katagoRuleset = RULESET_MAP[rulesetName] || 'chinese';
+    const query = {
+      id: Date.now().toString(),
+      initialStones: [],
+      moves: this.boardToGTP(board),
+      rules: katagoRuleset,
+      komi: board.ruleset.constructor.name === 'japaneseruleset' ? 6.5 : 7.5,
+      boardXSize: board.size,
+      boardYSize: board.size,
+      analyzeTurns: [board.moves.length],
+      maxVisits: settings.maxVisits,
+      rootPolicyTemperature: settings.playoutDoublingAdvantage > 0 ? 1.5 : 1.0,
+      rootFpuReductionMax: settings.playoutDoublingAdvantage
+    };
+
+    if (this.useService) {
+      console.log('Sending query to KataGo service:', JSON.stringify(query, null, 2));
+      try {
+        const response = await fetch(this.serviceUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(query)
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+        const jsonResp = await response.json();
+        console.log('Received response from KataGo service:', JSON.stringify(jsonResp, null, 2));
+        if (!jsonResp.moveInfos || jsonResp.moveInfos.length === 0) {
+          throw new Error('No move suggestions received from KataGo service');
+        }
+        const moveInfo = jsonResp.moveInfos[0];
+        if (!moveInfo.move) {
+          throw new Error('Invalid move format received from KataGo service');
+        }
+        const coords = this.vertexToCoords(moveInfo.move, board.size);
+        if (!coords) {
+          throw new Error('Invalid move coordinates received from KataGo service');
+        }
+        return {
+          x: coords.x,
+          y: coords.y,
+          winrate: moveInfo.winrate,
+          visits: moveInfo.visits,
+          scoreLead: moveInfo.scoreLead
+        };
+      } catch (error) {
+        console.error('Error calling KataGo service:', error);
+        throw error;
+      }
+    } else {
       if (!this.process) {
         await this.start();
       }
-
-      // Get the ruleset name from the board's ruleset
-      const rulesetName = board.ruleset.constructor.name.toLowerCase().replace('ruleset', '');
-      const katagoRuleset = RULESET_MAP[rulesetName] || 'chinese';
-
-      const query = {
-        id: Date.now().toString(),
-        initialStones: [],
-        moves: this.boardToGTP(board),
-        rules: katagoRuleset,
-        komi: board.ruleset.constructor.name === 'JapaneseRuleset' ? 6.5 : 7.5,
-        boardXSize: board.size,
-        boardYSize: board.size,
-        analyzeTurns: [board.moves.length],
-        maxVisits: settings.maxVisits,
-        rootPolicyTemperature: settings.playoutDoublingAdvantage > 0 ? 1.5 : 1.0,
-        rootFpuReductionMax: settings.playoutDoublingAdvantage
-      };
-
-      console.log('Sending query to KataGo:', JSON.stringify(query, null, 2));
-
-      const response = await new Promise((resolve, reject) => {
-        if (!this.process) {
-          reject(new Error('KataGo process not running'));
-          return;
-        }
+      console.log('Sending query to local KataGo process:', JSON.stringify(query, null, 2));
+      return new Promise((resolve, reject) => {
         this.currentRequest = { id: query.id, resolve, reject };
         this.process.stdin.write(JSON.stringify(query) + '\n');
+      }).then(response => {
+        console.log('Received response from local KataGo process:', JSON.stringify(response, null, 2));
+        if (!response.moveInfos || response.moveInfos.length === 0) {
+          throw new Error('No move suggestions received from KataGo');
+        }
+        const moveInfo = response.moveInfos[0];
+        if (!moveInfo.move) {
+          throw new Error('Invalid move format received from KataGo');
+        }
+        const coords = this.vertexToCoords(moveInfo.move, board.size);
+        if (!coords) {
+          throw new Error('Invalid move coordinates received from KataGo');
+        }
+        return {
+          x: coords.x,
+          y: coords.y,
+          winrate: moveInfo.winrate,
+          visits: moveInfo.visits,
+          scoreLead: moveInfo.scoreLead
+        };
       });
-
-      console.log('Received response from KataGo:', JSON.stringify(response, null, 2));
-
-      if (!response.moveInfos || response.moveInfos.length === 0) {
-        throw new Error('No move suggestions received from KataGo');
-      }
-
-      const moveInfo = response.moveInfos[0];
-      if (!moveInfo.move) {
-        throw new Error('Invalid move format received from KataGo');
-      }
-
-      const coords = this.vertexToCoords(moveInfo.move, board.size);
-      if (!coords) {
-        throw new Error('Invalid move coordinates received from KataGo');
-      }
-      
-      return {
-        x: coords.x,
-        y: coords.y,
-        winrate: moveInfo.winrate,
-        visits: moveInfo.visits,
-        scoreLead: moveInfo.scoreLead
-      };
-    } catch (error) {
-      console.error('Error getting KataGo move:', error);
-      throw error;
     }
   }
 
@@ -209,15 +249,15 @@ class KataGo {
     const settings = {
       beginner: {
         maxVisits: 100,
-        playoutDoublingAdvantage: 2.0  // Significant handicap
+        playoutDoublingAdvantage: 2.0
       },
       intermediate: {
         maxVisits: 500,
-        playoutDoublingAdvantage: 1.0  // Moderate handicap
+        playoutDoublingAdvantage: 1.0
       },
       advanced: {
         maxVisits: 1000,
-        playoutDoublingAdvantage: 0.0  // No handicap
+        playoutDoublingAdvantage: 0.0
       }
     };
 
@@ -226,7 +266,7 @@ class KataGo {
 
   // Clean up resources
   stop() {
-    if (this.process) {
+    if (!this.useService && this.process) {
       this.process.stdin.end();
       this.process.kill();
       this.process = null;

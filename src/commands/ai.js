@@ -8,8 +8,8 @@ const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, '../../');
 
 // Paths relative to project root
-const katagoPath = process.env.KATAGO_PATH || resolve(projectRoot, '../katago-opencl/katago.exe');
-const configPath = process.env.KATAGO_CONFIG_PATH || resolve(projectRoot, '../katago-opencl/analysis_example.cfg');
+const katagoPath = process.env.KATAGO_PATH;
+const configPath = process.env.KATAGO_CONFIG_PATH;
 
 console.log('KataGo paths:');
 console.log('Engine path:', katagoPath);
@@ -62,7 +62,20 @@ async function execute(interaction) {
       return;
     }
 
-    const katago = new KataGo(katagoPath, configPath);
+    let katago;
+    try {
+      katago = new KataGo(katagoPath, configPath);
+      if (process.env.KATAGO_MODE === 'service') {
+        console.log('KataGo is operating in service mode.');
+      }
+    } catch (error) {
+      console.error('Error initializing KataGo:', error);
+      await interaction.editReply({
+        content: `Error initializing KataGo: ${error.message}`,
+        ephemeral: true
+      });
+      return;
+    }
 
     try {
       switch (interaction.options.getSubcommand()) {
