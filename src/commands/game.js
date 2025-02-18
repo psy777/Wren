@@ -37,9 +37,18 @@ const data = new SlashCommandBuilder()
       ));
 
 async function execute(interaction) {
-  const channelId = interaction.channelId;
-  const size = BOARD_SIZES[interaction.options.getString('size')];
-  const ruleset = RULESETS[interaction.options.getString('ruleset')];
+  try {
+    const channelId = interaction.channelId;
+    const size = BOARD_SIZES[interaction.options.getString('size')];
+    const ruleset = RULESETS[interaction.options.getString('ruleset')];
+
+    if (!size || !ruleset) {
+      await interaction.reply({
+        content: 'Invalid board size or ruleset selected.',
+        ephemeral: true
+      });
+      return;
+    }
 
   // Check if there's already a game in this channel
   if (interaction.client.games.has(channelId)) {
@@ -50,29 +59,85 @@ async function execute(interaction) {
     return;
   }
 
-  // Create new game
-  const board = new Board(size, ruleset);
-  const renderer = new BoardRenderer(size);
+    // Create new game
+    let board, renderer;
+    try {
+      board = new Board(size, ruleset);
+      renderer = new BoardRenderer(size);
+    } catch (error) {
+      console.error('Error creating game:', error);
+      await interaction.reply({
+        content: 'Failed to create new game. Please try again or contact support.',
+        ephemeral: true
+      });
+      return;
+    }
 
-  // Store game state
-  interaction.client.games.set(channelId, {
-    board,
-    renderer,
-    currentColor: 'black',
-    lastMove: null,
-    passes: 0
-  });
+    // Store game state
+    try {
+      interaction.client.games.set(channelId, {
+        board,
+        renderer,
+        currentColor: 'black',
+        lastMove: null,
+        passes: 0
+      });
+    } catch (error) {
+      console.error('Error storing game state:', error);
+      await interaction.reply({
+        content: 'Failed to initialize game state. Please try again.',
+        ephemeral: true
+      });
+      return;
+    }
 
-  // Render initial board
-  const boardImage = renderer.render(board);
+    // Render initial board
+    let boardImage;
+    try {
+      boardImage = renderer.render(board);
+    } catch (error) {
+      console.error('Error rendering board:', error);
+      await interaction.reply({
+        content: 'Failed to render game board. Please try again.',
+        ephemeral: true
+      });
+      // Clean up the stored game state
+      interaction.client.games.delete(channelId);
+      return;
+    }
 
-  await interaction.reply({
-    content: `New ${size}x${size} game started with ${ruleset} rules! Use /join to join a team.`,
-    files: [{
-      attachment: boardImage,
-      name: 'board.png'
-    }]
-  });
+    try {
+      await interaction.reply({
+        content: `New ${size}x${size} game started with ${ruleset} rules! Use /join to join a team.`,
+        files: [{
+          attachment: boardImage,
+          name: 'board.png'
+        }]
+      });
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      // Clean up the stored game state
+      interaction.client.games.delete(channelId);
+      try {
+        await interaction.reply({
+          content: 'Failed to start new game. Please try again.',
+          ephemeral: true
+        });
+      } catch (followUpError) {
+        console.error('Error sending error message:', followUpError);
+      }
+    }
+  } catch (error) {
+    console.error('Unexpected error in game command:', error);
+    try {
+      await interaction.reply({
+        content: 'An unexpected error occurred. Please try again or contact support.',
+        ephemeral: true
+      });
+    } catch (followUpError) {
+      console.error('Error sending error message:', followUpError);
+    }
+  }
 }
 
 export {

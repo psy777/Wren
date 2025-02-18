@@ -29,7 +29,14 @@ async function execute(interaction) {
   const playerId = interaction.user.id;
   const oppositeTeam = team === COLORS.BLACK ? COLORS.WHITE : COLORS.BLACK;
 
-  // Check if player is already on the opposite team
+  // Check if player is already on either team
+  if (game.board.teams[team].has(playerId)) {
+    await interaction.reply({
+      content: `You are already on team ${team}!`,
+      ephemeral: true
+    });
+    return;
+  }
   if (game.board.teams[oppositeTeam].has(playerId)) {
     await interaction.reply({
       content: `You are already on team ${oppositeTeam}!`,
@@ -42,11 +49,7 @@ async function execute(interaction) {
   game.board.addToTeam(team, playerId);
 
   await interaction.reply({
-    content: `${interaction.user} joined team ${team}!`,
-    files: [{
-      attachment: game.renderer.render(game.board),
-      name: 'board.png'
-    }]
+    content: `${interaction.user} joined team ${team}!`
   });
 }
 
