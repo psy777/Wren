@@ -54,7 +54,9 @@ class KataGo {
     } catch (error) {
       console.error('Error spawning KataGo process:', error);
       this.startupError = error.message;
-      throw error;
+      console.error('KataGo process error:', error);
+      this.startupError = error.message;
+      return Promise.reject(new Error('KataGo is not available'));
     }
 
     // Handle process output
@@ -76,21 +78,24 @@ class KataGo {
     this.process.on('close', (code) => {
       console.log(`KataGo process exited with code ${code}`);
       if (code !== 0 && this.startupError) {
-        throw new Error(`KataGo startup error: ${this.startupError}`);
+      console.error(`KataGo startup error: ${this.startupError}`);
+      return Promise.reject(new Error('KataGo is not available'));
       }
       this.process = null;
     });
 
     this.process.on('error', (error) => {
       console.error('KataGo process error:', error);
-      throw error;
+      console.error('KataGo process error:', error);
+      return Promise.reject(new Error('KataGo is not available'));
     });
 
     // Wait for startup errors
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (this.startupError) {
-          reject(new Error(`KataGo startup error: ${this.startupError}`));
+          console.error(`KataGo startup error: ${this.startupError}`);
+          reject(new Error('KataGo is not available'));
         } else {
           resolve();
         }

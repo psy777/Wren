@@ -70,10 +70,17 @@ async function execute(interaction) {
       }
     } catch (error) {
       console.error('Error initializing KataGo:', error);
-      await interaction.editReply({
-        content: `Error initializing KataGo: ${error.message}`,
-        ephemeral: true
-      });
+      if (error.message === 'KataGo is not available') {
+        await interaction.editReply({
+          content: 'AI features are currently unavailable. You can still play without AI assistance.',
+          ephemeral: true
+        });
+      } else {
+        await interaction.editReply({
+          content: `Error initializing KataGo: ${error.message}`,
+          ephemeral: true
+        });
+      }
       return;
     }
 
@@ -150,10 +157,17 @@ async function execute(interaction) {
       }
     } catch (error) {
       console.error('KataGo error:', error);
-      await interaction.editReply({
-        content: 'Error communicating with KataGo. Please try again later or contact support.',
-        ephemeral: true
-      });
+      if (error.message === 'KataGo is not available') {
+        await interaction.editReply({
+          content: 'AI features are currently unavailable. You can still play without AI assistance.',
+          ephemeral: true
+        });
+      } else {
+        await interaction.editReply({
+          content: 'Error communicating with KataGo. Please try again later or contact support.',
+          ephemeral: true
+        });
+      }
     } finally {
       // Clean up KataGo process
       katago.stop();
